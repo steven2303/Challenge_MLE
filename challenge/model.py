@@ -42,31 +42,6 @@ class DelayModel:
         Path(self._categories_path).parent.mkdir(parents=True, exist_ok=True)
         joblib.dump({'valid_airlines': airliness}, self._categories_path)
 
-    def _load_training_categories(self) -> None:
-        """Load valid categories from saved training data"""
-        categories = joblib.load(self._categories_path)
-        print(categories)
-        self._valid_airlines = categories['valid_airlines']
-
-    def _validate_data(self, data: pd.DataFrame) -> None:
-        """Validate input data against training categories"""
-        self._load_training_categories()
-
-        # Validar MES
-        invalid_months = set(data['MES'].unique()) - self._valid_months
-        if invalid_months:
-            raise ValueError(f"Invalid months found: {invalid_months}")
-
-        # Validar TIPOVUELO
-        invalid_flight_types = set(data['TIPOVUELO'].unique()) - self._valid_flight_types
-        if invalid_flight_types:
-            raise ValueError(f"Invalid flight types found: {invalid_flight_types}")
-
-        # Validar OPERA contra operadores del training
-        invalid_airlines = set(data['OPERA'].unique()) - self._valid_airlines
-        if invalid_airlines:
-            raise ValueError(f"Invalid airliness found: {invalid_airlines}")
-
     def preprocess(
         self,
         data: pd.DataFrame,
@@ -85,22 +60,10 @@ class DelayModel:
         is_training = target_column is not None
 
         if is_training:
-            # En training, guardamos los operadores válidos
-            self._valid_airlines = set(data['OPERA'].unique())
-            self._save_training_categories(self._valid_airlines)
-        else:
-            # En predicción, validamos contra las categorías del training
-            self._validate_data(data)
-
-        data['min_diff'] = self._get_min_diff(data)
-        data['delay'] = np.where(data['min_diff'] > 15, 1, 0)
-
-        #if is_training:
-        #opera_dummies = pd.get_dummies(data['OPERA'], prefix='OPERA')
-        #tipovuelo_dummies = pd.get_dummies(data['TIPOVUELO'], prefix='TIPOVUELO')
-        #mes_dummies = pd.get_dummies(data['MES'], prefix='MES')
-
-        #features = pd.concat([opera_dummies, tipovuelo_dummies, mes_dummies], axis=1)
+            # Only in training, save the valid airlines
+            self._save_training_categories(set(data['OPERA'].unique()))
+            data['min_diff'] = self._get_min_diff(data)
+            data['delay'] = np.where(data['min_diff'] > 15, 1, 0)
 
         # Create dummy variables
         dummy_data = pd.get_dummies(data, columns=['OPERA', 'TIPOVUELO', 'MES'])
