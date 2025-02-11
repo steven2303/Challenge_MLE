@@ -58,9 +58,3 @@ jobs:
         name: test-reports
         path: reports/
         retention-days: 5
-
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@latest
-      with:
-        files: ./reports/coverage.xml
-        fail_ci_if_error: true
