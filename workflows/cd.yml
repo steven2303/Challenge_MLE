@@ -1,7 +1,38 @@
 name: 'Continuous Delivery'
 
 on:
-  ...
+  push:
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
-  ...
+  deploy:
+    name: Deploy to GCP
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v1
+      with:
+        project_id: ${{ secrets.GCP_PROJECT_ID }}
+        service_account_key: ${{ secrets.GCP_SA_KEY }}
+        export_default_credentials: true
+
+    - name: Build and push Docker image
+      run: |
+        gcloud auth configure-docker
+        docker build -t gcr.io/${{ secrets.GCP_PROJECT_ID }}/flight-delay-api:${{ github.sha }} .
+        docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/flight-delay-api:${{ github.sha }}
+
+    - name: Deploy to Cloud Run
+      uses: google-github-actions/deploy-cloudrun@v1
+      with:
+        service: flight-delay-api
+        image: gcr.io/${{ secrets.GCP_PROJECT_ID }}/flight-delay-api:${{ github.sha }}
+        region: us-central1
+        flags: --allow-unauthenticated
+
+    - name: Show Output URL
+      run: echo ${{ steps.deploy.outputs.url }}
