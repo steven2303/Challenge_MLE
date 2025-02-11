@@ -2,9 +2,9 @@ name: 'Continuous Integration'
 
 on:
   push:
-    branches: [ main, develop, deployment]
+    branches: [ main, develop, deployment, ci-cd]
   pull_request:
-    branches: [ main, develop, deployment]
+    branches: [ main, develop, deployment, ci-cd]
 
 jobs:
   test:
