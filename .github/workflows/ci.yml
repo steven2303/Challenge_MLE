@@ -12,10 +12,10 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@latest
+    - uses: actions/checkout@v4
 
     - name: Set up Python
-      uses: actions/setup-python@latest
+      uses: actions/setup-python@v4
       with:
         python-version: '3.12'
 
@@ -52,7 +52,7 @@ jobs:
         STRESS_URL: ${{ secrets.API_URL }}
 
     - name: Upload test reports
-      uses: actions/upload-artifact@latest
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: test-reports
@@ -60,7 +60,7 @@ jobs:
         retention-days: 5
 
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@latest
+      uses: codecov/codecov-action@v3
       with:
         files: ./reports/coverage.xml
         fail_ci_if_error: true
