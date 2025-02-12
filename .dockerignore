@@ -1,0 +1,40 @@
+# 🔹 Version Control Files
+.git/
+.gitignore
+.gitattributes
+
+# 🔹 Python Cache and Compiled Files
+__pycache__/
+*.pyc
+*.pyo
+
+# 🔹 Test and Coverage Reports
+.coverage
+.pytest_cache/
+
+# 🔹 Documentation and Non-Essential Files
+docs/
+README.md
+Makefile
+
+# 🔹 Logs and Temporary Files
+*.log
+*.tmp
+.DS_Store
+
+# 🔹 Environment and Sensitive Credentials
+.env
+secrets.json
+
+# 🔹 MacOS System Files
+__MACOSX/
+
+# 🔹 CI/CD Configuration Files
+workflows/
+
+# 🔹 Test-Related Files and Directories
+tests/
+
+# 🔹 Data and Generated Reports
+data/
+reports/

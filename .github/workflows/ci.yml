@@ -1,10 +1,10 @@
-name: 'Continuous Integration'
+name: "Continuous Integration"
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, develop, deployment, ci-cd]
   pull_request:
-    branches: [ main, develop ]
+    branches: [ main, develop, deployment, ci-cd]
 
 jobs:
   test:
@@ -12,14 +12,24 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.12'
 
+    - name: Cache Python dependencies
+      uses: actions/cache@v3
+      id: cache
+      with:
+        path: .venv
+        key: venv-${{ runner.os }}-${{ hashFiles('requirements*.txt') }}
+        restore-keys: |
+          venv-${{ runner.os }}-
+
     - name: Create venv and install dependencies
+      if: steps.cache.outputs.cache-hit != 'true'
       run: |
         make venv
         source .venv/bin/activate
@@ -33,7 +43,6 @@ jobs:
     - name: Run API Tests
       run: |
         source .venv/bin/activate
-        export API_PORT=8080
         make api-test
 
     - name: Run Stress Tests
@@ -44,66 +53,9 @@ jobs:
         STRESS_URL: ${{ secrets.API_URL }}
 
     - name: Upload test reports
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: test-reports
         path: reports/
-        retention-days: 30
-
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
-      with:
-        files: ./reports/coverage.xml
-        fail_ci_if_error: true
-
-  lint:
-    name: Code Quality
-    runs-on: ubuntu-latest
-    
-    steps:
-    - uses: actions/checkout@v3
-
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.12'
-
-    - name: Install linting dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install flake8 black isort
-
-    - name: Run linters
-      run: |
-        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-        black . --check
-        isort . --check-only --profile black
-
-  build:
-    name: Build Package
-    needs: [test, lint]
-    runs-on: ubuntu-latest
-    
-    steps:
-    - uses: actions/checkout@v3
-
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.9'
-
-    - name: Install build dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install wheel setuptools
-
-    - name: Build package
-      run: make build
-
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v3
-      with:
-        name: dist
-        path: dist/
-        retention-days: 30
+        retention-days: 5

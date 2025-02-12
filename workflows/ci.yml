@@ -1,7 +1,60 @@
 name: 'Continuous Integration'
 
 on:
-  ...
+  push:
+    branches: [ main, develop, deployment, ci-cd]
+  pull_request:
+    branches: [ main, develop, deployment, ci-cd]
 
 jobs:
-  ...
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@latest
+
+    - name: Set up Python
+      uses: actions/setup-python@latest
+      with:
+        python-version: '3.12'
+
+    - name: Cache Python dependencies
+      uses: actions/cache@latest
+      id: cache
+      with:
+        path: .venv
+        key: venv-${{ runner.os }}-${{ hashFiles('requirements.txt') }}
+        restore-keys: |
+          venv-${{ runner.os }}-
+
+    - name: Create venv and install dependencies
+      run: |
+        make venv
+        source .venv/bin/activate
+        make install
+
+    - name: Run Model Tests
+      run: |
+        source .venv/bin/activate
+        make model-test
+      
+    - name: Run API Tests
+      run: |
+        source .venv/bin/activate
+        make api-test
+
+    - name: Run Stress Tests
+      run: |
+        source .venv/bin/activate
+        make stress-test
+      env:
+        STRESS_URL: ${{ secrets.API_URL }}
+
+    - name: Upload test reports
+      uses: actions/upload-artifact@latest
+      if: always()
+      with:
+        name: test-reports
+        path: reports/
+        retention-days: 5
