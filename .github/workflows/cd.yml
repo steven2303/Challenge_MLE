@@ -29,23 +29,35 @@ jobs:
     
     steps:
     - uses: actions/checkout@v4
+      with:
+        ref: deployment
+
+    - id: 'auth'
+      name: 'Authenticate to Google Cloud'
+      uses: 'google-github-actions/auth@v1'
+      with:
+        credentials_json: '${{ secrets.GCP_SA_KEY }}'
 
     - name: Set up Cloud SDK
       uses: google-github-actions/setup-gcloud@v2
       with:
         project_id: ${{ secrets.GCP_PROJECT_ID }}
-        service_account_key: ${{ secrets.GCP_SA_KEY }}
-        export_default_credentials: true
+    
+    - name: Validate GCP Configuration
+      run: |
+        gcloud config list
+        gcloud auth list
   
     - name: Enable Required APIs
       run: |
         gcloud services enable cloudresourcemanager.googleapis.com
         gcloud services enable serviceusage.googleapis.com
         gcloud services enable artifactregistry.googleapis.com
+        gcloud services enable run.googleapis.com
 
     - name: Create Artifact Registry Repository
       run: |
-        gcloud artifacts repositories create challenge-repo \
+        gcloud artifacts repositories create ${{ env.REPOSITORY }} \
           --repository-format=docker \
           --location=us-central1 \
           --description="Docker repository for the challenge" || echo "Repository already exists."
