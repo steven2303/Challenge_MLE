@@ -7,9 +7,17 @@ from pathlib import Path
 import joblib
 
 class DelayModel:
+    """
+    A machine learning model for predicting flight delays.
+    
+    This class handles data preprocessing, model training, saving/loading the model, and making predictions.
+    """
     def __init__(
         self
     ):
+        """
+        Initializes the DelayModel with default parameters and paths for saving/loading the model.
+        """
         self._model = None
         self._model_path = "models/delay_model.joblib" 
         self._categories_path = "models/categories.joblib"
@@ -31,14 +39,27 @@ class DelayModel:
         self._valid_airlines = None
 
     def _get_min_diff(self, data: pd.DataFrame) -> pd.Series:
-        """Calculate time difference in minutes between Fecha-O and Fecha-I"""
+        """
+        Calculates the time difference in minutes between 'Fecha-O' and 'Fecha-I'.
+        
+        Args:
+            data (pd.DataFrame): The input DataFrame containing 'Fecha-O' and 'Fecha-I'.
+        
+        Returns:
+            pd.Series: The time difference in minutes.
+        """
         fecha_o = pd.to_datetime(data['Fecha-O'])
         fecha_i = pd.to_datetime(data['Fecha-I'])
         min_diff = ((fecha_o - fecha_i).dt.total_seconds())/60
         return min_diff
 
     def _save_training_categories(self, airliness: set) -> None:
-        """Save valid categories from training data"""
+        """
+        Saves valid airlines extracted from training data.
+        
+        Args:
+            airlines (set): Set of valid airlines from the training data.
+        """
         Path(self._categories_path).parent.mkdir(parents=True, exist_ok=True)
         joblib.dump({'valid_airlines': airliness}, self._categories_path)
 

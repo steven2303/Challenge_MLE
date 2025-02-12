@@ -28,23 +28,26 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout Repository
+      uses: actions/checkout@v4
       with:
         ref: deployment
 
-    - id: 'auth'
-      name: 'Authenticate to Google Cloud'
-      uses: 'google-github-actions/auth@v1'
+    # Autenticación con Google Cloud usando una clave de cuenta de servicio
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
       with:
         credentials_json: '${{ secrets.GCP_SA_KEY }}'
         export_default_credentials: true
 
+    # Configurar Google Cloud SDK
     - name: Set up Cloud SDK
       uses: google-github-actions/setup-gcloud@v2
       with:
         project_id: ${{ secrets.GCP_PROJECT_ID }}
         export_default_credentials: true
     
+    # Validar configuración de autenticación en Google Cloud
     - name: Validate GCP Configuration
       run: |
         echo "GOOGLE_APPLICATION_CREDENTIALS: $GOOGLE_APPLICATION_CREDENTIALS"
