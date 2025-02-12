@@ -1,38 +1,63 @@
-name: 'Continuous Delivery'
+name: "Continuous Delivery"
 
 on:
   workflow_run:
-    workflows: [Continuous Integration]
+    workflows: ["Continuous Integration"]
     types:
       - completed
-    branches:
+    branches: 
       - deployment
 
 jobs:
+
+  debug-trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Debug Workflow Info
+        run: |
+          echo "Workflow run conclusion: ${{ github.event.workflow_run.conclusion }}"
+          echo "Source branch: ${{ github.event.workflow_run.head_branch }}"
+          echo "Workflow name: ${{ github.event.workflow_run.name }}"
+          echo "Event name: ${{ github.event_name }}"
+          echo "Repository: ${{ github.repository }}"
+
   deploy:
+    needs: debug-trigger
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     name: Deploy to GCP
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+      with:
+        ref: deployment
+
+    # Autenticación con Google Cloud usando una clave de cuenta de servicio
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: '${{ secrets.GCP_SA_KEY }}'
 
     - name: Set up Cloud SDK
       uses: google-github-actions/setup-gcloud@v2
       with:
         project_id: ${{ secrets.GCP_PROJECT_ID }}
-        service_account_key: ${{ secrets.GCP_SA_KEY }}
-        export_default_credentials: true
-  
-    - name: Enable Required APIs
+
+    #  Confirmar que la autenticación se aplica correctamente en `gcloud`
+    - name: Validate Authentication
       run: |
-        gcloud services enable cloudresourcemanager.googleapis.com
-        gcloud services enable serviceusage.googleapis.com
+        gcloud auth list
+        gcloud config list
+
+    - name: Enable Required Services
+      run: |
+        gcloud services enable run.googleapis.com
         gcloud services enable artifactregistry.googleapis.com
 
     - name: Create Artifact Registry Repository
       run: |
-        gcloud artifacts repositories create challenge-repo \
+        gcloud artifacts repositories create ${{ env.REPOSITORY }} \
           --repository-format=docker \
           --location=us-central1 \
           --description="Docker repository for the challenge" || echo "Repository already exists."
