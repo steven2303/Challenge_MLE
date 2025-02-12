@@ -38,21 +38,23 @@ jobs:
       uses: google-github-actions/auth@v2
       with:
         credentials_json: '${{ secrets.GCP_SA_KEY }}'
-        export_default_credentials: true
 
     # Configurar Google Cloud SDK
     - name: Set up Cloud SDK
       uses: google-github-actions/setup-gcloud@v2
       with:
         project_id: ${{ secrets.GCP_PROJECT_ID }}
-        export_default_credentials: true
     
     # Validar configuración de autenticación en Google Cloud
     - name: Validate GCP Configuration
       run: |
-        echo "GOOGLE_APPLICATION_CREDENTIALS: $GOOGLE_APPLICATION_CREDENTIALS"
-        gcloud config list
         gcloud auth list
+        gcloud config list
+
+    - name: Enable Required Services
+      run: |
+        gcloud services enable run.googleapis.com
+        gcloud services enable artifactregistry.googleapis.com
 
     - name: Create Artifact Registry Repository
       run: |
