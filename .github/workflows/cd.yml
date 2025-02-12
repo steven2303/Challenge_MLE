@@ -50,11 +50,6 @@ jobs:
         gcloud auth list
         gcloud config list
 
-    - name: Enable Required Services
-      run: |
-        gcloud services enable run.googleapis.com
-        gcloud services enable artifactregistry.googleapis.com
-
     - name: Create Artifact Registry Repository
       run: |
         gcloud artifacts repositories create ${{ env.REPOSITORY }} \
