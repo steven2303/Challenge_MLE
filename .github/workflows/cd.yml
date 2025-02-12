@@ -39,15 +39,22 @@ jobs:
       with:
         credentials_json: '${{ secrets.GCP_SA_KEY }}'
 
-    # Configurar Google Cloud SDK
+    #  Validar autenticación antes de continuar
+    - name: Validate Authentication
+      run: |
+        gcloud auth list
+        gcloud config list
+
+    #  Configurar Google Cloud SDK
     - name: Set up Cloud SDK
       uses: google-github-actions/setup-gcloud@v2
       with:
         project_id: ${{ secrets.GCP_PROJECT_ID }}
-    
-    # Validar configuración de autenticación en Google Cloud
-    - name: Validate GCP Configuration
+
+    #  Confirmar que la autenticación se aplica correctamente en `gcloud`
+    - name: Configure gcloud authentication
       run: |
+        gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS
         gcloud auth list
         gcloud config list
 
