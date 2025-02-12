@@ -1,0 +1,85 @@
+name: "Continuous Delivery"
+
+on:
+  workflow_run:
+    workflows: ["Continuous Integration"]
+    types:
+      - completed
+    branches: 
+      - deployment
+
+jobs:
+
+  debug-trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Debug Workflow Info
+        run: |
+          echo "Workflow run conclusion: ${{ github.event.workflow_run.conclusion }}"
+          echo "Source branch: ${{ github.event.workflow_run.head_branch }}"
+          echo "Workflow name: ${{ github.event.workflow_run.name }}"
+          echo "Event name: ${{ github.event_name }}"
+          echo "Repository: ${{ github.repository }}"
+
+  deploy:
+    needs: debug-trigger
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    name: Deploy to GCP
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+      with:
+        project_id: ${{ secrets.GCP_PROJECT_ID }}
+        service_account_key: ${{ secrets.GCP_SA_KEY }}
+        export_default_credentials: true
+  
+    - name: Enable Required APIs
+      run: |
+        gcloud services enable cloudresourcemanager.googleapis.com
+        gcloud services enable serviceusage.googleapis.com
+        gcloud services enable artifactregistry.googleapis.com
+
+    - name: Create Artifact Registry Repository
+      run: |
+        gcloud artifacts repositories create challenge-repo \
+          --repository-format=docker \
+          --location=us-central1 \
+          --description="Docker repository for the challenge" || echo "Repository already exists."
+
+    # Paso 5: Configurar Docker para usar Artifact Registry
+    - name: Configure Docker for Artifact Registry
+      run: |
+        gcloud auth configure-docker us-central1-docker.pkg.dev
+
+    # Paso 6: Construir la imagen Docker
+    - name: Build Docker Image
+      run: |
+        docker build -t ml-challenge .
+
+    # Paso 7: Etiquetar la imagen Docker para Artifact Registry
+    - name: Tag Docker Image
+      run: |
+        docker tag ml-challenge:latest us-central1-docker.pkg.dev/ml-challenge-2025/challenge-repo/ml-challenge:latest
+
+    # Paso 8: Subir la imagen Docker a Artifact Registry
+    - name: Push Docker Image
+      run: |
+        docker push us-central1-docker.pkg.dev/ml-challenge-2025/challenge-repo/ml-challenge:latest
+
+    # Paso 9: Desplegar en Cloud Run
+    - name: Deploy to Cloud Run
+      run: |
+        gcloud run deploy ml-challenge-api \
+          --image=us-central1-docker.pkg.dev/ml-challenge-2025/challenge-repo/ml-challenge:latest \
+          --region=us-central1 \
+          --platform=managed \
+          --allow-unauthenticated
+
+    # Paso 10: Mostrar la URL del servicio desplegado
+    - name: Show Output URL
+      run: |
+        echo "Deployed URL: $(gcloud run services describe ml-challenge-api --region=us-central1 --format='value(status.url)')"
