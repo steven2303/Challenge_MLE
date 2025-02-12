@@ -47,15 +47,9 @@ jobs:
     
     - name: Validate GCP Configuration
       run: |
+        echo "GOOGLE_APPLICATION_CREDENTIALS: $GOOGLE_APPLICATION_CREDENTIALS"
         gcloud config list
         gcloud auth list
-  
-    - name: Enable Required APIs
-      run: |
-        gcloud services enable cloudresourcemanager.googleapis.com
-        gcloud services enable serviceusage.googleapis.com
-        gcloud services enable artifactregistry.googleapis.com
-        gcloud services enable run.googleapis.com
 
     - name: Create Artifact Registry Repository
       run: |
