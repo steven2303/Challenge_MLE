@@ -1,13 +1,29 @@
-name: 'Continuous Delivery'
+name: "Continuous Delivery"
 
 on:
   workflow_run:
-    workflows: [Continuous Integration] 
+    workflows: ["Continuous Integration"]
     types:
       - completed
+    branches: 
+      - deployment
 
 jobs:
+
+  debug-trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Debug Workflow Info
+        run: |
+          echo "Workflow run conclusion: ${{ github.event.workflow_run.conclusion }}"
+          echo "Source branch: ${{ github.event.workflow_run.head_branch }}"
+          echo "Workflow name: ${{ github.event.workflow_run.name }}"
+          echo "Event name: ${{ github.event_name }}"
+          echo "Repository: ${{ github.repository }}"
+
   deploy:
+    needs: debug-trigger
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     name: Deploy to GCP
     runs-on: ubuntu-latest
     
