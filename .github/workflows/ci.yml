@@ -24,7 +24,7 @@ jobs:
       id: cache
       with:
         path: .venv
-        key: venv-${{ runner.os }}-${{ hashFiles('requirements.txt') }}
+        key: venv-${{ runner.os }}-${{ hashFiles('requirements*.txt') }}
         restore-keys: |
           venv-${{ runner.os }}-
 
