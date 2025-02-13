@@ -14,86 +14,89 @@ on:
       - deployment
 
 jobs:
-
-  debug-trigger:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Debug Workflow Info
-        run: |
-          echo "Workflow run conclusion: ${{ github.event.workflow_run.conclusion }}"
-          echo "Source branch: ${{ github.event.workflow_run.head_branch }}"
-          echo "Workflow name: ${{ github.event.workflow_run.name }}"
-          echo "Event name: ${{ github.event_name }}"
-          echo "Repository: ${{ github.repository }}"
-
   deploy:
-    needs: debug-trigger
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     name: Deploy to GCP
     runs-on: ubuntu-latest
-    
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v4
-      with:
-        ref: deployment
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-    # Autenticación con Google Cloud usando una clave de cuenta de servicio
-    - name: Authenticate to Google Cloud
-      uses: google-github-actions/auth@v2
-      with:
-        credentials_json: '${{ secrets.GCP_SA_KEY }}'
+      # Paso 2: Configurar Docker Buildx para usar caché
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      
+      # Paso 3: Configurar caché para Docker
+      - name: Cache Docker layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: docker-buildx-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            docker-buildx-${{ runner.os }}-
 
-    - name: Set up Cloud SDK
-      uses: google-github-actions/setup-gcloud@v2
-      with:
-        project_id: ${{ secrets.GCP_PROJECT_ID }}
+      # Paso 4: Autenticación con Google Cloud
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
 
-    #  Confirmar que la autenticación se aplica correctamente en `gcloud`
-    - name: Validate Authentication
-      run: |
-        gcloud auth list
-        gcloud config list
+      # Paso 5: Configurar Google Cloud SDK
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
 
-    - name: Create Artifact Registry Repository
-      run: |
-        if ! gcloud artifacts repositories create ${{ env.REPOSITORY }} \
+      # Paso 6: Crear el repositorio en Artifact Registry (si no existe)
+      - name: Create Artifact Registry Repository
+        run: |
+          gcloud artifacts repositories create ${{ env.REPOSITORY }} \
             --repository-format=docker \
             --location=${{ env.REGION }} \
-            --description="Docker repository for the challenge"; then
-          echo "Repository already exists or another error occurred."
-        fi
+            --description="Docker repository for the challenge" || echo "Repository already exists."
 
-    # Paso 5: Configurar Docker para usar Artifact Registry
-    - name: Configure Docker for Artifact Registry
-      run: |
-        gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
+      # Paso 7: Configurar Docker para usar Artifact Registry
+      - name: Configure Docker for Artifact Registry
+        run: |
+          gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
 
-    # Paso 6: Construir la imagen Docker
-    - name: Build Docker Image
-      run: |
-        docker build -t ${{ env.ARTIFACT_NAME }} .
+      # Paso 8: Construir la imagen Docker con caché
+      - name: Build Docker Image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: false
+          tags: ${{ env.ARTIFACT_NAME }}:latest
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
 
-    # Paso 7: Etiquetar la imagen Docker para Artifact Registry
-    - name: Tag Docker Image
-      run: |
-        docker tag ${{ env.ARTIFACT_NAME }}:latest ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.ARTIFACT_NAME }}:latest
+      # Paso 9: Mover la caché nueva a la ubicación de caché
+      - name: Move Docker cache
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
-    # Paso 8: Subir la imagen Docker a Artifact Registry
-    - name: Push Docker Image
-      run: |
-        docker push ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.ARTIFACT_NAME }}:latest
+      # Paso 10: Etiquetar la imagen Docker para Artifact Registry
+      - name: Tag and Push Docker Image
+        run: |
+          docker tag ${{ env.ARTIFACT_NAME }}:latest ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.ARTIFACT_NAME }}:latest
+          docker push ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.ARTIFACT_NAME }}:latest
 
-    # Paso 9: Desplegar en Cloud Run
-    - name: Deploy to Cloud Run
-      run: |
-        gcloud run deploy ${{ env.ARTIFACT_NAME }}-api \
-          --image=${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.ARTIFACT_NAME }}:latest \
-          --region=${{ env.REGION }} \
-          --platform=managed \
-          --allow-unauthenticated
+      # Paso 11: Subir la imagen Docker a Artifact Registry
+      - name: Push Docker Image
+        run: |
+          docker push ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.ARTIFACT_NAME }}:latest
 
-    # Paso 10: Mostrar la URL del servicio desplegado
-    - name: Show Output URL
-      run: |
-        echo "Deployed URL: $(gcloud run services describe ${{ env.ARTIFACT_NAME }}-api --region=${{ env.REGION }} --format='value(status.url)')"
+      # Paso 12: Desplegar en Cloud Run
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy ${{ env.ARTIFACT_NAME }}-api \
+            --image=${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.ARTIFACT_NAME }}:latest \
+            --region=${{ env.REGION }} \
+            --platform=managed \
+            --allow-unauthenticated
+
+      # Paso 13: Mostrar la URL del servicio desplegado
+      - name: Show Output URL
+        run: |
+          echo "Deployed URL: $(gcloud run services describe ${{ env.ARTIFACT_NAME }}-api --region=${{ env.REGION }} --format='value(status.url)')"
