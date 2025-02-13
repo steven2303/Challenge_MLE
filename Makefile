@@ -11,8 +11,7 @@ help:             	## Show the help.
 .PHONY: venv
 venv:			## Create a virtual environment
 	@echo "Creating virtualenv ..."
-	@rm -rf .venv
-	@python3 -m venv .venv
+	@if [ ! -d ".venv" ]; then python3 -m venv .venv; fi
 	@./.venv/bin/pip install -U pip
 	@echo
 	@echo "Run 'source .venv/bin/activate' to enable the environment"
