@@ -6,16 +6,10 @@ env:
   REGION: us-central1
 
 on:
-  workflow_run:
-    workflows: ["Continuous Integration"]
-    types:
-      - completed
-    branches: 
-      - main
+  workflow_dispatch:
 
 jobs:
   deploy:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     name: Deploy to GCP
     runs-on: ubuntu-latest
     steps:
