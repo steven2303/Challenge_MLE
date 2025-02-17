@@ -69,6 +69,7 @@ jobs:
         with:
           context: .
           push: false
+          load: true
           tags: ${{ env.ARTIFACT_NAME }}:latest
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
@@ -83,11 +84,6 @@ jobs:
       - name: Tag and Push Docker Image
         run: |
           docker tag ${{ env.ARTIFACT_NAME }}:latest ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.ARTIFACT_NAME }}:latest
-          docker push ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.ARTIFACT_NAME }}:latest
-
-      # Paso 11: Subir la imagen Docker a Artifact Registry
-      - name: Push Docker Image
-        run: |
           docker push ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.ARTIFACT_NAME }}:latest
 
       # Paso 12: Desplegar en Cloud Run
