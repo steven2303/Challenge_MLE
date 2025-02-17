@@ -7,6 +7,15 @@ env:
 
 on:
   workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'develop'
+        type: choice
+        options:
+          - develop
+          - main
 
 jobs:
   deploy:
